@@ -6,8 +6,6 @@
 #include <chrono>
 #include <iostream>
 #include <mutex>
-#include <sstream>
-#include <syncstream>
 #include <unordered_map>
 
 namespace net = boost::asio;
@@ -68,6 +66,13 @@ std::ostream& operator<<(std::ostream& os, const Hamburger& h) {
               << (h.IsPacked() ? ", packed"sv : ", not packed"sv);
 }
 
+// Защищает доступ к std::cout от одновременного доступа в многопоточном приложении
+void Print(const std::function<void(std::ostream&)> fn) {
+    static std::mutex mutex;
+    std::lock_guard lk{mutex};
+    fn(std::cout);
+}
+
 class Logger {
 public:
     explicit Logger(std::string id)
@@ -75,9 +80,19 @@ public:
     }
 
     void LogMessage(std::string_view message) const {
-        std::osyncstream os{std::cout};
-        os << id_ << "> ["sv << duration<double>(steady_clock::now() - start_time_).count()
-           << "s] "sv << message << std::endl;
+        Log([message](std::ostream& os) {
+            os << message;
+        });
+    }
+
+    template <typename Fn>
+    void Log(Fn&& fn) const {
+        Print([&fn, this](std::ostream& os) {
+            os << id_ << "> ["sv << duration<double>(steady_clock::now() - start_time_).count()
+               << "s] "sv;
+            fn(os);
+            os << std::endl;
+        });
     }
 
 private:

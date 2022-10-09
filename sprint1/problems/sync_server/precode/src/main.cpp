@@ -9,7 +9,6 @@
 #include <boost/beast/http.hpp>
 #include <iostream>
 #include <thread>
-#include <optional>
 
 namespace net = boost::asio;
 using tcp = net::ip::tcp;
